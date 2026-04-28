@@ -1,13 +1,24 @@
 import requests
 
 def generate_response(prompt):
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={
-            "model": "llama3:instruct",  # ✅ BEST CHOICE
-            "prompt": prompt,
-            "stream": False
-        }
-    )
+    try:
+        response = requests.post(
+            "http://localhost:11434/api/generate",
+            json={
+                "model": "mistral:latest",
+                "prompt": prompt[:1200],
+                "stream": False
+            },
+            timeout=360
+        )
 
-    return response.json()["response"]
+        if response.status_code != 200:
+            return f"Ollama error: {response.text}"
+
+        data = response.json()
+        return data.get("response", "No response from model")
+
+    except requests.exceptions.ConnectionError:
+        return "⚠️ Ollama is not running. Start it with: `ollama serve`"
+    except Exception as e:
+        return f"Error: {str(e)}"
