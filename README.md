@@ -296,7 +296,6 @@ Give it a ⭐ on GitHub!
 ---
 
 <!--suppress HtmlDeprecatedAttribute -->
----
 
 <p align="center">
   <img src="https://img.shields.io/badge/v1.0-Completed-success?style=for-the-badge" />
