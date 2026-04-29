@@ -3,10 +3,14 @@ import time
 
 from auth import login_user, register_user
 from agents.orchestrator import run_all_agents
-from database.queries import save_resume, update_result, get_user_history
+from database.queries import save_resume, update_result, get_user_history, get_user_stats
 from utils.validators import clean_skills
 from utils.helpers import validate_input
 from services.ollama_service import generate_response
+
+# NEW IMPORTS (ADDED)
+from utils.pdf_generator import generate_pdf
+from agents.keyword_agent import generate_keywords
 
 st.set_page_config(page_title="AI Career Copilot", layout="wide")
 
@@ -100,7 +104,6 @@ else:
         index=0
     )
 
-
     st.sidebar.info(f"Model: {st.session_state.model}")
 
     if st.sidebar.button("Logout"):
@@ -108,47 +111,40 @@ else:
         st.rerun()
 
     # =========================
-    # HISTORY TOGGLE (CLEAN)
+    # USER ANALYTICS (NEW)
     # =========================
+    stats = get_user_stats(st.session_state.user)
+    st.sidebar.metric("Total Analyses", stats["total"])
+    st.sidebar.metric("Avg ATS Score", stats["avg_score"])
 
+    # =========================
+    # HISTORY TOGGLE
+    # =========================
     if "show_history" not in st.session_state:
         st.session_state.show_history = False
 
-    # Toggle button with dynamic label
     toggle_label = "📊 Show History" if not st.session_state.show_history else "❌ Hide History"
 
     if st.sidebar.button(toggle_label):
         st.session_state.show_history = not st.session_state.show_history
-        st.rerun()  # 🔥 THIS FIXES DOUBLE CLICK ISSUE
-
-    # =========================
-    # DISPLAY HISTORY
-    # =========================
+        st.rerun()
 
     if st.session_state.show_history:
-
         st.sidebar.markdown("## 📊 History")
 
         history = get_user_history(st.session_state.user)
 
         if history:
             for row in history:
-                st.sidebar.markdown("---")  # separator line
-
+                st.sidebar.markdown("---")
                 st.sidebar.markdown(f"**🕒 {row['created_at']}**")
                 st.sidebar.markdown(f"**Model :** **{row['model']}**")
                 st.sidebar.markdown(f"**📊 ATS Score:** {row.get('ats_score', 'N/A')}")
-
-                # Resume preview
                 preview = row["content"][:150].replace("\n", " ")
                 st.sidebar.write(preview + "...")
-
-
         else:
             st.sidebar.info("No history found")
 
-
-    # Greeting
     if not st.session_state.greeted:
         st.success(f"Welcome {st.session_state.user}")
         st.session_state.greeted = True
@@ -205,13 +201,17 @@ else:
             # =========================
             # CARDS UI
             # =========================
-
             st.markdown(f"""
             <div class="card">
             <h3>📄 Optimized Resume</h3>
             <p>{optimized}</p>
             </div>
             """, unsafe_allow_html=True)
+
+            # PDF DOWNLOAD (NEW)
+            pdf_file = generate_pdf(optimized)
+            with open(pdf_file, "rb") as f:
+                st.download_button("📥 Download PDF Resume", f, file_name="resume.pdf")
 
             st.markdown(f"""
             <div class="card">
@@ -228,9 +228,6 @@ else:
             </div>
             """, unsafe_allow_html=True)
 
-            # =========================
-            # JOB RECOMMENDATIONS
-            # =========================
             st.markdown(f"""
             <div class="card">
             <h3>🎯 Job Recommendations</h3>
@@ -238,21 +235,44 @@ else:
             </div>
             """, unsafe_allow_html=True)
 
-            # =========================
-            # AI SUGGESTIONS
-            # =========================
-            st.markdown("### 💡 Suggestions")
+            # NEW FEATURES
+            st.markdown(f"""
+            <div class="card">
+            <h3>📊 Resume Breakdown</h3>
+            <p>{result.get('scoring', 'No scoring')}</p>
+            </div>
+            """, unsafe_allow_html=True)
 
+            st.markdown(f"""
+            <div class="card">
+            <h3>🧠 Skill Roadmap</h3>
+            <p>{result.get('roadmap', 'No roadmap')}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Suggestions
+            st.markdown("### 💡 Suggestions")
             prompt = f"Give 3 improvements for this resume:\n{resume[:1000]}"
             suggestions = generate_response(prompt, st.session_state.model)
-
             st.write(suggestions)
 
         else:
             st.error("Fill both fields")
 
     # =========================
-    # CHAT
+    # KEYWORD GENERATOR (NEW)
+    # =========================
+    st.markdown("---")
+    st.subheader("🔍 Keyword Generator")
+
+    role_input = st.text_input("Enter job role")
+
+    if role_input:
+        keywords = generate_keywords(role_input, st.session_state.model)
+        st.write(keywords)
+
+    # =========================
+    # CHAT (UPGRADED)
     # =========================
     st.markdown("---")
     st.subheader("💬 Chat")
@@ -276,7 +296,13 @@ else:
         resume_ctx = st.session_state.get("last_resume", "")
 
         prompt = f"""
-You are a career assistant.
+You are a career coach.
+
+You help with:
+- Resume improvement
+- Interview prep
+- Skill advice
+- Career guidance
 
 Conversation:
 {history_text}
@@ -284,7 +310,7 @@ Conversation:
 Resume:
 {resume_ctx[:1000]}
 
-Question:
+User question:
 {user_input}
 """
 

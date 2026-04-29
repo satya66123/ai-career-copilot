@@ -1,6 +1,6 @@
 from services.ollama_service import generate_response
 
-def analyze_job_fit(resume, job_description, strict_mode=True):
+def analyze_job_fit(resume, job_description, strict_mode=True, model ="mistral:latest"):
 
     prompt = f"""
 You MUST follow this format EXACTLY.
@@ -40,4 +40,4 @@ Resume:
 Job Description:
 {job_description}
 """
-    return generate_response(prompt)
+    return generate_response(prompt,model)

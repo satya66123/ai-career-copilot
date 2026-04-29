@@ -1,11 +1,11 @@
 import requests
 
-def generate_response(prompt):
+def generate_response(prompt,model="mistral:latest"):
     try:
         response = requests.post(
             "http://localhost:11434/api/generate",
             json={
-                "model": "mistral:latest",
+                "model": model,
                 "prompt": prompt[:1200],
                 "stream": False
             },

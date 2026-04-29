@@ -1,3 +1,4 @@
+reportlab
 sentence-transformers
 scikit-learn
 requests

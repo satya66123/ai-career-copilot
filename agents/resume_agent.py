@@ -1,6 +1,6 @@
 from services.ollama_service import generate_response
 
-def optimize_resume(resume, job_description, strict_mode=True):
+def optimize_resume(resume, job_description, strict_mode=True, model="mistral:latest"):
 
     if strict_mode:
         rules = """
@@ -26,4 +26,4 @@ Job Description:
 Output structured resume.
 """
 
-    return generate_response(prompt)
+    return generate_response(prompt,model)
